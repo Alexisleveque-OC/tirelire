@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta name="theme-color" content="#123B44">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #E6F4EF;
+    --paper: #FFFFFF;
+    --ink: #123B44;
+    --muted: #5B7A80;
+    --coin: #F5B700;
+    --coin-edge: #C98F00;
+    --in: #1E8A5A;
+    --out: #B3245A;
+    --line: #CFE5DD;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0F2A30;
+      --paper: #163940;
+      --ink: #EAF6F3;
+      --muted: #9DBCC0;
+      --coin: #F5B700;
+      --coin-edge: #A87700;
+      --in: #5BD39B;
+      --out: #F07AA6;
+      --line: #24505A;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Fredoka", "Nunito", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+  }
+  main { max-width: 440px; margin: 0 auto; padding: 24px 20px 40px; }
+
+  h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 24px; }
+
+  /* La pièce : l'élément central */
+  .coin {
+    width: 210px; height: 210px; margin: 0 auto 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFE27A 0%, var(--coin) 55%, var(--coin-edge) 100%);
+    box-shadow: inset 0 0 0 10px rgba(255,255,255,.25), inset 0 -8px 0 rgba(0,0,0,.12);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #3A2A00;
+  }
+  .coin .total { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.02em; }
+  .coin .caption { font-size: .95rem; opacity: .8; }
+
+  .split { background: var(--paper); border-radius: 18px; padding: 6px 18px; margin-bottom: 20px; }
+  .split div { display: flex; justify-content: space-between; padding: 12px 0; }
+  .split div + div { border-top: 1px solid var(--line); }
+  .split span:last-child { font-weight: 600; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+  button {
+    font: inherit; border: 0; cursor: pointer; border-radius: 14px;
+    padding: 14px 12px; font-weight: 500;
+  }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--coin); outline-offset: 2px; }
+  .b-in { background: var(--in); color: #fff; }
+  .b-out { background: var(--out); color: #fff; }
+  .b-count { grid-column: 1 / -1; background: var(--paper); color: var(--ink); border: 2px solid var(--line); }
+
+  .panel { background: var(--paper); border-radius: 18px; padding: 18px; margin-bottom: 28px; }
+  .panel[hidden] { display: none; }
+  .panel h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 14px; }
+  label { display: block; font-size: .95rem; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%; font: inherit; font-size: 1.2rem; color: var(--ink);
+    background: var(--bg); border: 2px solid var(--line); border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 10px; }
+  .row button { flex: 1; }
+  .b-save { background: var(--ink); color: var(--paper); }
+  .b-cancel { background: transparent; color: var(--muted); }
+
+  h2.hist { font-size: 1.1rem; font-weight: 600; margin: 0 0 10px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  li small { display: block; color: var(--muted); font-size: .85rem; }
+  .plus { color: var(--in); font-weight: 600; white-space: nowrap; }
+  .minus { color: var(--out); font-weight: 600; white-space: nowrap; }
+  .empty, .msg { color: var(--muted); }
+  .msg { min-height: 1.4em; margin: -14px 0 14px; font-size: .95rem; }
+  .error { color: var(--out); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ma tirelire</h1>
+
+  <div class="coin" aria-live="polite">
+    <span class="total" id="total">…</span>
+    <span class="caption">en tout</span>
+  </div>
+
+  <div class="split">
+    <div><span>Gardé par papa et maman</span><span id="owed">…</span></div>
+    <div><span>Dans mon porte-monnaie</span><span id="cash">…</span></div>
+  </div>
+
+  <div class="actions">
+    <button class="b-in" data-type="recu">J’ai reçu</button>
+    <button class="b-out" data-type="depense">J’ai dépensé</button>
+    <button class="b-count" data-type="comptage">J’ai compté mon porte-monnaie</button>
+  </div>
+
+  <p class="msg" id="msg" role="status"></p>
+
+  <form class="panel" id="panel" hidden>
+    <h2 id="panelTitle"></h2>
+    <label for="amount" id="amountLabel">Montant</label>
+    <input id="amount" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+    <div id="labelWrap">
+      <label for="label">C’était pour quoi ?</label>
+      <input id="label" maxlength="60" autocomplete="off" placeholder="Ex. goûter, argent de poche">
+    </div>
+    <div class="row">
+      <button type="button" class="b-cancel" id="cancel">Annuler</button>
+      <button type="submit" class="b-save" id="save">Enregistrer</button>
+    </div>
+  </form>
+
+  <h2 class="hist">Mes derniers mouvements</h2>
+  <ul id="history"><li class="empty">Chargement…</li></ul>
+</main>
+
+<script>
+  // URL /exec de votre déploiement Apps Script (pas secrète : sans la clé, elle ne renvoie rien)
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzp9eAdZAP43sCbdg5u3oAp1-cDX1dwAGrA2c613oxxSSpQ5WWalgb8uA_x1bEX7IjMtg/exec';
+
+  // La clé arrive une fois via le lien …/#k=CLE, puis reste sur le téléphone
+  const STORE = 'tirelire-key';
+  let K = null;
+  try {
+    const m = location.hash.match(/k=([A-Za-z0-9]+)/);
+    if (m) {
+      localStorage.setItem(STORE, m[1]);
+      history.replaceState(null, '', location.pathname);
+    }
+    K = localStorage.getItem(STORE);
+  } catch (e) { /* stockage indisponible */ }
+
+  const eur = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+  const fmt = v => (v === null || v === undefined) ? '—' : eur.format(v);
+  const $ = id => document.getElementById(id);
+  let currentType = null;
+
+  const TITLES = {
+    recu: ['J’ai reçu de l’argent', 'Combien ?'],
+    depense: ['J’ai dépensé de l’argent', 'Combien ?'],
+    comptage: ['J’ai compté mon porte-monnaie', 'Combien as-tu en tout ?'],
+  };
+
+  async function api(body) {
+    const res = body
+      ? await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ k: K }, body)) })
+      : await fetch(API_URL + '?k=' + encodeURIComponent(K));
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Erreur.');
+    return data;
+  }
+
+  function render(d) {
+    $('owed').textContent = fmt(d.owed);
+    $('cash').textContent = fmt(d.cash);
+    $('total').textContent = fmt((d.owed || 0) + d.cash);
+
+    const ul = $('history');
+    ul.textContent = '';
+    if (!d.history.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'Rien pour l’instant. Commence par compter ton porte-monnaie.';
+      ul.appendChild(li);
+      return;
+    }
+    d.history.forEach(h => {
+      const li = document.createElement('li');
+      const left = document.createElement('span');
+      left.textContent = h.label || h.type;
+      const date = document.createElement('small');
+      date.textContent = new Date(h.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      left.appendChild(date);
+      const right = document.createElement('span');
+      right.className = h.amount >= 0 ? 'plus' : 'minus';
+      right.textContent = (h.amount >= 0 ? '+' : '') + eur.format(h.amount);
+      li.append(left, right);
+      ul.appendChild(li);
+    });
+  }
+
+  function say(text, isError) {
+    $('msg').textContent = text;
+    $('msg').className = 'msg' + (isError ? ' error' : '');
+  }
+
+  async function load() {
+    if (!K) {
+      say('Ouvre le lien que papa t’a envoyé pour activer ta tirelire.', true);
+      $('history').textContent = '';
+      document.querySelectorAll('.actions button').forEach(b => { b.disabled = true; });
+      return;
+    }
+    try { render(await api()); }
+    catch (e) { say(e.message === 'Accès refusé.' ? 'Ce lien n’est plus valide. Demande le nouveau lien à papa.' : 'Impossible de charger. Vérifie ta connexion.', true); }
+  }
+
+  function openPanel(type) {
+    currentType = type;
+    $('panelTitle').textContent = TITLES[type][0];
+    $('amountLabel').textContent = TITLES[type][1];
+    $('labelWrap').hidden = type === 'comptage';
+    $('amount').value = '';
+    $('label').value = '';
+    $('panel').hidden = false;
+    say('');
+    $('amount').focus();
+  }
+
+  document.querySelectorAll('.actions button').forEach(b =>
+    b.addEventListener('click', () => openPanel(b.dataset.type)));
+
+  $('cancel').addEventListener('click', () => { $('panel').hidden = true; });
+
+  $('panel').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const amount = parseFloat($('amount').value.replace(/\s/g, '').replace(',', '.'));
+    if (!isFinite(amount) || amount < 0) { say('Écris un montant, par exemple 2,50.', true); return; }
+    $('save').disabled = true;
+    try {
+      render(await api({ type: currentType, amount, label: $('label').value }));
+      $('panel').hidden = true;
+      say('Enregistré.');
+    } catch (e) {
+      say(e.message || 'L’enregistrement n’a pas marché. Réessaie.', true);
+    } finally {
+      $('save').disabled = false;
+    }
+  });
+
+  load();
+</script>
+</body>
+</html>
